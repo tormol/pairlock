@@ -1,0 +1,12 @@
+lib = {path = "arccell.rs"}
+
+[package]
+name = "arccell2"
+description = "A thread-safe cell for `Arc`s, implemented with differential reference counting"
+keywords = ["sync", "differential", "cell"]
+categories = ["data-structures", "concurrency"]
+license = "Apache-2.0 / MIT"
+version = "0.0.0"
+
+readme = "README.md"
+authors = ["Torbjørn Birch Moltu <t.b.moltu@lyse.net>"]
