@@ -1,4 +1,5 @@
 lib = {path = "arccell.rs"}
+test = [{name = "tests", path = "tests.rs"}]
 
 [package]
 name = "arccell2"
