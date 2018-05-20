@@ -10,7 +10,9 @@ use std::fmt::{self, Debug};
 use std::cell::UnsafeCell;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::*;
 use std::marker::PhantomData;
+use std::mem::forget;
 
 /// Permits thread-safe stores and wait-free clones of an `Arc<T>`.
 pub struct ArcCell<T:?Sized> {
@@ -80,7 +82,17 @@ impl<T:?Sized> ArcCell<T> {
     ///
     /// Will never block in any way, and should run in constant time.
     pub fn get(&self) -> Arc<T> {
-        unimplemented!()
+        unsafe {
+            let current = self.reads_current.fetch_add(2, Acquire);
+            let slot = current & 1;
+            let ptr = *self.arcs[slot].get();
+            let arc = Arc::from_raw(ptr);
+            // increase reference count
+            forget(arc.clone());
+            // mark read as complete
+            self.finished_reads[slot].fetch_add(2, Release);
+            arc
+        }
     }
 }
 
