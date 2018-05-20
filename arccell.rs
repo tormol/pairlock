@@ -140,6 +140,6 @@ impl<T:?Sized+Debug> Debug for ArcCell<T> {
 
 impl<T:?Sized+Default> Default for ArcCell<T> {
     fn default() -> Self {
-        unimplemented!()
+        Self::new(Arc::new(T::default()))
     }
 }
