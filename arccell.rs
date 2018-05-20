@@ -39,7 +39,10 @@ unsafe impl<T:?Sized+Send+Sync> Sync for ArcCell<T> {}
 
 impl<T:?Sized> Drop for ArcCell<T> {
     fn drop(&mut self) {
-
+        unsafe {
+            drop(Arc::from_raw(*self.arcs[0].get()));
+            drop(Arc::from_raw(*self.arcs[1].get()));
+        }
     }
 }
 
