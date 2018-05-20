@@ -55,3 +55,9 @@ fn debug_fmt() {
     assert_eq!(format!("{:?}", r), format!("{:?}", *r.get()));
     assert_eq!(format!("{:#?}", r), format!("{:#?}", *r.get()));
 }
+
+
+#[test]
+fn default() {
+    assert_eq!(*ArcCell::<bool>::default().get(), bool::default());
+}
