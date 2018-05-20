@@ -9,10 +9,11 @@
 use std::fmt::{self, Debug};
 use std::cell::UnsafeCell;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, spin_loop_hint};
 use std::sync::atomic::Ordering::*;
 use std::marker::PhantomData;
 use std::mem::forget;
+use std::thread::yield_now;
 
 /// Permits thread-safe stores and wait-free clones of an `Arc<T>`.
 pub struct ArcCell<T:?Sized> {
@@ -75,7 +76,41 @@ impl<T:?Sized> ArcCell<T> {
     /// (that is, reads of the `Arc<T>` that was made outdated by the previous
     /// call to `set()`)
     pub fn set(&self,  arc: Arc<T>) {
-
+        unsafe {
+            let mut lock = self.prev_reads.lock().unwrap();
+            let prev_reads = *lock;
+            let next_active = prev_reads & 1;
+            // make sure that all clones of the previous Arc has finished
+            if self.finished_reads[next_active].load(Acquire) != prev_reads {
+                // for this to happen, a read must not only have outlasted the
+                // previous write, but still not be complete.
+                // I guess that can happen if the previous write just finished
+                // and the read is happening from a slower / downclocked core.
+                spin_loop_hint();
+                spin_loop_hint();
+                spin_loop_hint();
+                spin_loop_hint();
+                // If it hasn't finished now it must have been descheduled.
+                while self.finished_reads[next_active].load(Acquire) != prev_reads {
+                    // ... in which case it'l be a while.
+                    yield_now();
+                    // Unlocking the mutex here would complicate the code
+                    // further, and could cause a newer value to be replaced by
+                    // an older one.
+                }
+            }
+            let slot = self.arcs[next_active].get();
+            // pointer of previous arc
+            let prevx2_ptr = *slot;
+            *slot = Arc::into_raw(arc);
+            // makes the new value active
+            let current_reads = self.reads_current.swap(prev_reads, Release);
+            *lock = current_reads;
+            drop(lock);
+            // dropping the arc doesn't require the lock, drop it now to hold
+            // the lock for as short as possible.
+            drop(Arc::from_raw(prevx2_ptr))
+        }
     }
 
     /// Returns a clone of the stored `Arc<T>`.
