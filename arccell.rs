@@ -46,7 +46,21 @@ impl<T:?Sized> Drop for ArcCell<T> {
 impl<T:?Sized> ArcCell<T> {
     /// Creates a new `ArcCell`.
     pub fn new(init: Arc<T>) -> Self {
-        unimplemented!()
+        // force wraparound in tests to ensure that it isn't a problem.
+        let reads_start = if cfg!(debug_assertions) {!0<<2} else {0};
+        ArcCell {
+            reads_current: AtomicUsize::new(reads_start),
+            finished_reads: [
+                AtomicUsize::new(reads_start),
+                AtomicUsize::new(reads_start+1)
+            ],
+            arcs: [
+                UnsafeCell::new(Arc::into_raw(init.clone())),
+                UnsafeCell::new(Arc::into_raw(init))
+            ],
+            prev_reads: Mutex::new(reads_start+1),
+            _contains: PhantomData
+        }
     }
 
     /// Stores a new value in the `ArcCell`.
