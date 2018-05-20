@@ -134,7 +134,7 @@ impl<T:?Sized> ArcCell<T> {
 impl<T:?Sized+Debug> Debug for ArcCell<T> {
     /// Forwards to `T`'s debug implementation.
     fn fmt(&self,  fmtr: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+        Debug::fmt(&*self.get(), fmtr)
     }
 }
 
