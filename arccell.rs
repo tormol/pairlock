@@ -95,9 +95,8 @@ impl<T:?Sized> ArcCell<T> {
                 while self.finished_reads[next_active].load(Acquire) != prev_reads {
                     // ... in which case it'l be a while.
                     yield_now();
-                    // Unlocking the mutex here would complicate the code
-                    // further, and could cause a newer value to be replaced by
-                    // an older one.
+                    // Unlocking the mutex here would complicate the code, and
+                    // could cause a newer value to be replaced by an older one.
                 }
             }
             let slot = self.arcs[next_active].get();
