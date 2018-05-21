@@ -165,8 +165,9 @@ impl<T:?Sized> Clone for ArcCell<T> {
     fn clone_from(&mut self,  source: &Self) {
         unsafe {
             let init = source.get();
-            *self.arcs[0].get_mut() = Arc::into_raw(init.clone());
-            *self.arcs[1].get_mut() = Arc::into_raw(init);
+            // OK because exclusive access
+            *self.arcs[0].get() = Arc::into_raw(init.clone());
+            *self.arcs[1].get() = Arc::into_raw(init);
         }
     }
 }
