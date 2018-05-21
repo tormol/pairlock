@@ -78,3 +78,11 @@ fn pointers() {
     c.set(t2);
     assert!(ptr::eq(&*c.get(), t2_ptr));
 }
+
+#[test]
+fn basic_unsized() {
+    let c: ArcCell<str> = ArcCell::new(Arc::from("one"));
+    assert_eq!(&*c.get(), "one");
+    c.set("another");
+    assert_eq!(&*c.get(), "another");
+}
