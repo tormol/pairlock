@@ -143,3 +143,19 @@ impl<T:?Sized+Default> Default for ArcCell<T> {
         Self::new(Arc::new(T::default()))
     }
 }
+
+impl<T:?Sized> Clone for ArcCell<T> {
+    /// Returns a new `ArcCell` initialized with the current `Arc` in `self`.
+    ///
+    /// Does not clone the content of the `Arc`.
+    fn clone(&self) -> Self {
+        Self::new(self.get())
+    }
+    fn clone_from(&mut self,  source: &Self) {
+        unsafe {
+            let init = source.get();
+            *self.arcs[0].get_mut() = Arc::into_raw(init.clone());
+            *self.arcs[1].get_mut() = Arc::into_raw(init);
+        }
+    }
+}
