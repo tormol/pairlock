@@ -76,7 +76,10 @@ impl<T:?Sized> ArcCell<T> {
     /// if there are reads of the second last value that haven't finished yet.  
     /// (that is, reads of the `Arc<T>` that was made outdated by the previous
     /// call to `set()`)
-    pub fn set(&self,  arc: Arc<T>) {
+    pub fn set<I:Into<Arc<T>>>(&self,  value: I) {
+        self.set_inner(value.into())
+    }
+    fn set_inner(&self,  arc: Arc<T>) {
         unsafe {
             let mut lock = self.prev_reads.lock().unwrap();
             let prev_reads = *lock;
@@ -138,9 +141,17 @@ impl<T:?Sized+Debug> Debug for ArcCell<T> {
     }
 }
 
-impl<T:?Sized+Default> Default for ArcCell<T> {
+impl<T:Default> Default for ArcCell<T> {
     fn default() -> Self {
         Self::new(Arc::new(T::default()))
+    }
+}
+
+impl<T> From<T> for ArcCell<T> {
+    /// Puts `value` into an `Arc<T>` and creates a new `ArcCell` initialized
+    /// to it.
+    fn from(value: T) -> Self {
+        Self::new(Arc::new(value))
     }
 }
 
