@@ -3,6 +3,7 @@ use arccell2::ArcCell;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::ptr;
 
 #[test]
 fn basic() {
@@ -60,4 +61,20 @@ fn debug_fmt() {
 #[test]
 fn default() {
     assert_eq!(*ArcCell::<bool>::default().get(), bool::default());
+}
+
+#[test]
+fn pointers() {
+    let t1 = Arc::new(true);
+    let t1_ptr = &*t1 as *const bool;
+    let c = ArcCell::new(t1.clone());
+    assert!(ptr::eq(&*c.get(), t1_ptr));
+    assert!(ptr::eq(&*c.get(), t1_ptr));
+    c.set(t1);
+    let t2 = Arc::new(true);
+    let t2_ptr = &*t2 as *const bool;
+    assert!(!ptr::eq(t2_ptr, t1_ptr));
+    assert!(ptr::eq(&*c.get(), t1_ptr));
+    c.set(t2);
+    assert!(ptr::eq(&*c.get(), t2_ptr));
 }
