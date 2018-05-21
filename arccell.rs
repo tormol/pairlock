@@ -16,6 +16,28 @@ use std::mem::forget;
 use std::thread::yield_now;
 
 /// Permits thread-safe stores and wait-free clones of an `Arc<T>`.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use arccell2::ArcCell;
+/// # use std::sync::Arc;
+/// # use std::thread;
+/// # use std::time::Duration;
+/// # fn load_config() -> String {String::new()}
+/// # fn use_config(_: Arc<String>) {}
+/// let ac = Arc::new(ArcCell::new(Arc::new(load_config())));
+/// let ac2 = ac.clone();
+/// thread::spawn(move|| {
+///     loop {
+///         use_config(ac2.get());;
+///     }
+/// });
+/// loop {
+///     thread::sleep(Duration::from_secs(60));
+///     ac.set(load_config());
+/// }
+/// ```
 pub struct ArcCell<T:?Sized> {
     /// Incremented by two at the start of each read.
     /// Least significant bit stores index of the active slot.
