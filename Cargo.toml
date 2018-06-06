@@ -1,13 +1,13 @@
-lib = {path = "arccell.rs"}
+lib = {path = "pairlock.rs"}
 test = [{name = "tests", path = "tests.rs"}]
 
 [package]
-name = "arccell2"
-description = "A thread-safe cell for `Arc`s, implemented with differential reference counting"
-keywords = ["sync", "differential", "cell"]
+name = "pairlock"
+description = "A reader-writer lock with wait-free reads"
+keywords = ["sync", "rwlock", "mutex"]
 categories = ["data-structures", "concurrency"]
 license = "Apache-2.0 / MIT"
-version = "0.0.0"
-
+version = "0.1.0"
+repository = "https://gitlab.com/torbmol/pairlock"
 readme = "README.md"
 authors = ["Torbjørn Birch Moltu <t.b.moltu@lyse.net>"]

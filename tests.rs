@@ -1,5 +1,5 @@
-extern crate arccell2;
-use arccell2::ArcCell;
+extern crate pairlock;
+use pairlock::{PairLock,TryUpdateError};
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
@@ -7,10 +7,73 @@ use std::ptr;
 
 #[test]
 fn basic() {
-    let r = ArcCell::new(Arc::new(0));
-    assert_eq!(*r.get(), 0);
-    r.set(Arc::new(1));
-    assert_eq!(*r.get(), 1);
+    let r = PairLock::new(1, 0);
+    assert_eq!(r.view(|v| *v ), 1);
+    assert_eq!(r.view(|v| *v ), 1);
+    let mut updater = r.update();
+    assert_eq!(*updater, 0);
+    *updater = 2;
+    drop(updater);
+    assert_eq!(r.view(|v| *v ), 2);
+    let mut updater = r.try_update().unwrap();
+    assert_eq!(*updater, 1);
+    *updater = 3;
+    drop(updater);
+    assert_eq!(r.view(|v| *v ), 3);
+    let prev = r.set(4);
+    assert_eq!(prev, 2);
+}
+
+#[test]
+fn basic_clone() {
+    let pl = PairLock::with_default(vec![1]);
+    assert_eq!(pl.get_clone(), vec![1]);
+    let default = pl.set(vec![2,3]);
+    assert_eq!(default, Vec::default());
+    assert_eq!(pl.get_clone(), vec![2,3]);
+}
+#[test]
+fn basic_copy() {
+    let pl = PairLock::with_default("one");
+    assert_eq!(pl.read(), "one");
+    pl.set("another");
+    assert_eq!(pl.read(), "another");
+}
+
+#[test]
+fn basic_arc() {
+    let pl = PairLock::new_arc(0);
+    assert_eq!(*pl.get(), 0);
+    pl.set(Arc::new(1));
+    assert_eq!(*pl.get(), 1);
+}
+
+#[test]
+fn exclusive() {
+    let mut pl = PairLock::new(1, 0);
+    assert_eq!(*pl.get_mut_active(), 1);
+    assert_eq!(*pl.get_mut_inactive(), 0);
+    assert_eq!(pl.get_mut_both(), (&mut 1, &mut 0));
+    *pl.update() = 2;
+    assert_eq!(*pl.get_mut_active(), 2);
+    assert_eq!(*pl.get_mut_inactive(), 1);
+    assert_eq!(pl.get_mut_both(), (&mut 2, &mut 1));
+    assert_eq!(pl.into_inner(), (2,1));
+}
+
+#[test]
+fn singlethreaded_locking() {
+    let r = PairLock::new((),());
+    assert!(r.try_update().is_ok());
+    r.view(|_| r.view(|_| assert!(r.try_update().is_ok()) ) );
+    r.view(|_| {
+        assert!(r.try_update().is_ok());
+        assert_eq!(r.try_update(), Err(TryUpdateError::InactiveReads));
+    });
+    r.view(|_| {
+        let _u = r.update();
+        assert_eq!(r.try_update(), Err(TryUpdateError::OtherUpdate));
+    });
 }
 
 #[test]
@@ -26,22 +89,19 @@ fn drop_runs() {
     }
 
     // ... once when both slots point to the same arc
-    drop(ArcCell::new(Arc::new(Foo)));
+    drop(PairLock::with_clone(Arc::new(Foo)));
     assert_eq!(DROPS.load(Ordering::SeqCst), 1);
 
     // ... twice when pointing to two different
-    let c = ArcCell::new(Arc::new(Foo));
-    c.set(Arc::new(Foo));
-    assert_eq!(DROPS.load(Ordering::SeqCst), 1);
-    drop(c);
+    drop(PairLock::new(Arc::new(Foo), Arc::new(Foo)));
     assert_eq!(DROPS.load(Ordering::SeqCst), 3);
 
     // ... when the last reference drops
-    let c = ArcCell::new(Arc::new(Foo));
-    let a = c.get();
-    c.set(Arc::new(Foo));
-    let b = c.get();
-    drop(c);
+    let pl = PairLock::new_arc(Foo);
+    let a = pl.get();
+    pl.set(Arc::new(Foo));
+    let b = pl.get();
+    drop(pl);
     assert_eq!(DROPS.load(Ordering::SeqCst), 3);
     drop(a);
     drop(b);
@@ -50,24 +110,27 @@ fn drop_runs() {
 
 #[test]
 fn debug_fmt() {
-    #[derive(Debug)]
-    struct Foo{bar:()}
-    let r = ArcCell::new(Arc::new(Foo{bar:()}));
-    assert_eq!(format!("{:?}", r), format!("{:?}", *r.get()));
-    assert_eq!(format!("{:#?}", r), format!("{:#?}", *r.get()));
+    #[derive(Clone,Copy, Debug)]
+    struct Foo{bar:&'static str}
+    let pl = PairLock::new(Foo{bar:"baz"}, Foo{bar:"quux"});
+    assert_eq!(format!("{:?}", pl), format!("PairLock({:?}, _)", pl.read()));
+    assert_eq!(
+        format!("{:#?}", pl),
+        "PairLock(\n    Foo {\n        bar: \"baz\"\n    },\n    _\n)"
+    );
 }
 
 
 #[test]
 fn default() {
-    assert_eq!(*ArcCell::<bool>::default().get(), bool::default());
+    assert_eq!(PairLock::<bool>::default().read(), bool::default());
 }
 
 #[test]
 fn pointers() {
     let t1 = Arc::new(true);
     let t1_ptr = &*t1 as *const bool;
-    let c = ArcCell::new(t1.clone());
+    let c = PairLock::with_clone(t1.clone());
     assert!(ptr::eq(&*c.get(), t1_ptr));
     assert!(ptr::eq(&*c.get(), t1_ptr));
     c.set(t1);
@@ -77,12 +140,4 @@ fn pointers() {
     assert!(ptr::eq(&*c.get(), t1_ptr));
     c.set(t2);
     assert!(ptr::eq(&*c.get(), t2_ptr));
-}
-
-#[test]
-fn basic_unsized() {
-    let c: ArcCell<str> = ArcCell::new(Arc::from("one"));
-    assert_eq!(&*c.get(), "one");
-    c.set("another");
-    assert_eq!(&*c.get(), "another");
 }
