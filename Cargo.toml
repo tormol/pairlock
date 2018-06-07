@@ -11,3 +11,7 @@ version = "0.1.0"
 repository = "https://gitlab.com/torbmol/pairlock"
 readme = "README.md"
 authors = ["Torbjørn Birch Moltu <t.b.moltu@lyse.net>"]
+
+[dev-dependencies]
+crossbeam = "0.3"
+num_cpus = "1.0"
