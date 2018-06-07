@@ -9,10 +9,13 @@ This is accomplished by storing two values of `T` and marking one of them as
 active: Reads see the active value, while writes mutate the inactive one before
 switching the active status.
 
-Does not have poisoning.
+I'm no expert on lock-free programming, and I've only tested on x86_64,
+however the code makes liberal use of `fence(SeqCst)`.
 
-Might be buggy - I'm no expert on lock-free programming, the algorithm is
-non-trivial and has only been tested on x86_64. 
+It can be used with any (sized) type, but wrapping them in a `Box` or `Arc`
+might improve performance by reducing false sharing.
+
+Does not have poisoning.
 
 ## Implementation details
 
@@ -31,6 +34,11 @@ second one.
 Writes start by locking the mutex and waiting untill all reads of the inactive
 slot have finished, and finish by swapping the value of the first variable with
 the one in the mutex.
+
+The algorithm is similar to left-right locking, but simpler and not as
+efficient: Left-right reduces sharing by having multiple counters, and
+readers only needing to modify one of them.
+
 
 ## License
 
