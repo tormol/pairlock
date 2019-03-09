@@ -6,6 +6,8 @@
  * copied, modified, or distributed except according to those terms.
  */
 
+#![allow(clippy::mutex_atomic)] // used for locking
+
 use std::cell::UnsafeCell;
 use std::sync::{Mutex,MutexGuard,TryLockError, Arc};
 use std::sync::atomic::{AtomicUsize,fence, spin_loop_hint};

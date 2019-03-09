@@ -11,6 +11,7 @@ version = "0.1.0"
 repository = "https://gitlab.com/torbmol/pairlock"
 readme = "README.md"
 authors = ["Torbjørn Birch Moltu <t.b.moltu@lyse.net>"]
+edition = "2018"
 
 [dev-dependencies]
 crossbeam = "0.3"
