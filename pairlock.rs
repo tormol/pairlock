@@ -10,8 +10,9 @@
 
 use std::cell::UnsafeCell;
 use std::sync::{Mutex,MutexGuard,TryLockError, Arc};
-use std::sync::atomic::{AtomicUsize,fence, spin_loop_hint};
+use std::sync::atomic::{AtomicUsize,fence};
 use std::sync::atomic::Ordering::{SeqCst,Relaxed};
+use std::hint::spin_loop;
 use std::thread::yield_now;
 use std::{ptr, mem};
 use std::ops::{Deref,DerefMut};
@@ -195,7 +196,7 @@ impl<T> PairLock<T> {
                         Ok(success) => return success,
                         Err(retry) => retry
                     };
-                    spin_loop_hint();
+                    spin_loop();
                 }
                 // release lock before yielding
                 drop(inactive_reads);
@@ -460,6 +461,7 @@ impl Error for TryUpdateError {
 }
 impl Display for TryUpdateError {
     fn fmt(&self,  fmtr: &mut fmt::Formatter) -> fmt::Result {
+        #[allow(deprecated)]
         fmtr.write_str(self.description())
     }
 }

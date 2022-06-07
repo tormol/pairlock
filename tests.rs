@@ -2,7 +2,7 @@ extern crate pairlock;
 use pairlock::{PairLock,TryUpdateError};
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::ptr;
 
 #[test]
@@ -78,7 +78,7 @@ fn singlethreaded_locking() {
 
 #[test]
 fn drop_runs() {
-    static DROPS: AtomicUsize = ATOMIC_USIZE_INIT;
+    static DROPS: AtomicUsize = AtomicUsize::new(0);
 
     struct Foo;
 
@@ -111,12 +111,13 @@ fn drop_runs() {
 #[test]
 fn debug_fmt() {
     #[derive(Clone,Copy, Debug)]
+    #[allow(unused)]
     struct Foo{bar:&'static str}
     let pl = PairLock::new(Foo{bar:"baz"}, Foo{bar:"quux"});
     assert_eq!(format!("{:?}", pl), format!("PairLock({:?}, _)", pl.read()));
     assert_eq!(
         format!("{:#?}", pl),
-        "PairLock(\n    Foo {\n        bar: \"baz\"\n    },\n    _\n)"
+        "PairLock(\n    Foo {\n        bar: \"baz\",\n    },\n    _,\n)"
     );
 }
 
